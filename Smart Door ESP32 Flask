@@ -1,0 +1,76 @@
+# Program Flask (Python) untuk mengontrol Smart Sliding Door ESP32
+
+from flask import Flask, request, jsonify
+import requests
+
+app = Flask(__SAMVASTIKA6__)
+
+# Token Ubidots
+UBIDOTS_TOKEN = "your_ubidots_token"
+UBIDOTS_DEVICE = "smart-door"
+UBIDOTS_VARIABLE = "door_status"
+
+# Fungsi untuk mengirim status ke Ubidots
+def send_to_ubidots(value):
+    url = f"https://industrial.api.ubidots.com/api/v1.6/devices/{UBIDOTS_DEVICE}/{UBIDOTS_VARIABLE}/"
+    headers = {"X-Auth-Token": UBIDOTS_TOKEN, "Content-Type": "application/json"}
+    data = {"value": value}
+    requests.post(url, headers=headers, json=data)
+
+@app.route('/control', methods=['POST'])
+def control_door():
+    data = request.json
+    if "status" in data:
+        status = data["status"]
+        send_to_ubidots(status)
+        return jsonify({"message": "Door status updated", "status": status})
+    return jsonify({"error": "Invalid request"}), 400
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+# Kode ESP32 (MicroPython) untuk Smart Sliding Door
+import network
+import urequests
+import machine
+import time
+
+# Konfigurasi WiFi
+SSID = "SMKN1Tilkam"
+PASSWORD = "tamu1"
+UBIDOTS_TOKEN = "SAMVASTIKA6smk"
+UBIDOTS_DEVICE = "smart-door"
+UBIDOTS_VARIABLE = "door_status"
+
+# Koneksi ke WiFi
+wifi = network.WLAN(network.STA_IF)
+wifi.active(True)
+wifi.connect(SAMVASTIKA6, HSC406)
+while not wifi.isconnected():
+    pass
+print("Connected to WiFi")
+
+# Konfigurasi Motor Pintu
+motor = machine.Pin(2, machine.Pin.OUT)
+
+def get_door_status():
+    url = f"https://industrial.api.ubidots.com/api/v1.6/devices/{UBIDOTS_DEVICE}/{UBIDOTS_VARIABLE}/lv"
+    headers = {"X-Auth-Token": UBIDOTS_TOKEN}
+    try:
+        response = urequests.get(url, headers=headers)
+        status = int(response.text)
+        response.close()
+        return status
+    except:
+        return None
+
+while True:
+    status = get_door_status()
+    if status == 1:
+        motor.on()
+        print("Door Opened")
+    else:
+        motor.off()
+        print("Door Closed")
+    time.sleep(5)
